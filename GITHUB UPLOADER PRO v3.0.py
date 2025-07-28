@@ -33,16 +33,16 @@ try:
 except ImportError:
     COLORAMA_AVAILABLE = False
 
-# Configuration for Server Dashboard IT
+# Configuration for Server Dashboard Python/Tkinter
 CONFIG = {
-    'source_dir': r"d:\Server-Dashboard-IT",
-    'username': "me-suzy",
-    'token': "ghp_YOUR-TOKEN",
-    'repo_name': "Server-Dashboard-IT-Monitoring",
-    'work_dir': r"D:\temp_github_upload_dashboard",
+    'source_dir': r"e:\Carte\BB\17 - Site Leadership\alte\Ionel Balauta\Aryeht\Task 1 - Traduce tot site-ul\Doar Google Web\Andreea\Meditatii\2023\Topologie retea",
+    'username': "TU-USERUL-TAU-GITHUB",  # ÎNLOCUIEȘTE cu username-ul tău GitHub
+    'token': "TU-TOKEN-UL-TAU-GITHUB",   # ÎNLOCUIEȘTE cu token-ul tău GitHub
+    'repo_name': "Server-Network-Topology-Monitor",
+    'work_dir': r"D:\temp_github_upload_server_monitor",
     'ignore_files': [
         '.git', '__pycache__', 'venv', '.env', '*.pyc', '*.log', '*.tmp',
-        'node_modules', '.vscode', '.idea', 'dist', 'build'
+        'node_modules', '.vscode', '.idea', 'dist', 'build', '*.backup'
     ]
 }
 
@@ -105,18 +105,11 @@ class ConflictResolver:
         timestamp = int(time.time())
         suggestions = [
             f"{original_name}-Pro",
-            f"{original_name}-v2",
-            f"{original_name}-{timestamp}",
             f"{original_name}-Advanced",
-            f"IT-Dashboard-Monitoring",
-            f"Server-Monitor-Dashboard"
-        ]
-
-        # Reserved/invalid names on GitHub
-        reserved_names = [
-            'update', 'delete', 'create', 'new', 'edit', 'settings', 'admin',
-            'api', 'www', 'mail', 'ftp', 'blog', 'docs', 'help', 'support',
-            'git', 'github', 'gitlab', 'bitbucket', 'master', 'main'
+            f"{original_name}-{timestamp}",
+            f"Python-Server-Monitor",
+            f"IT-Network-Dashboard",
+            f"Tkinter-Server-Monitor"
         ]
 
         while True:
@@ -134,40 +127,23 @@ class ConflictResolver:
                 if not new_name:
                     new_name = suggestions[0]
 
-            # Validate name
-            if self._validate_repo_name(new_name, reserved_names):
+            if self._validate_repo_name(new_name):
                 return "create", new_name
             else:
                 self.output.print_error(f"❌ Invalid name '{new_name}'. Please choose another.")
 
-    def _validate_repo_name(self, name, reserved_names):
+    def _validate_repo_name(self, name):
         """Validate GitHub repository name"""
-        if not name:
-            self.output.print_error("Repository name cannot be empty")
+        if not name or len(name) > 100:
             return False
-
-        if len(name) > 100:
-            self.output.print_error("Repository name too long (max 100 characters)")
-            return False
-
-        if name.lower() in reserved_names:
-            self.output.print_error(f"'{name}' is a reserved name on GitHub")
-            return False
-
-        # Check for invalid characters
+        
         import re
         if not re.match(r'^[a-zA-Z0-9._-]+$', name):
-            self.output.print_error("Repository name can only contain letters, numbers, dots, hyphens, and underscores")
             return False
-
-        if name.startswith('.') or name.endswith('.'):
-            self.output.print_error("Repository name cannot start or end with a dot")
+            
+        if name.startswith('.') or name.endswith('.') or name.startswith('-') or name.endswith('-'):
             return False
-
-        if name.startswith('-') or name.endswith('-'):
-            self.output.print_error("Repository name cannot start or end with a hyphen")
-            return False
-
+            
         return True
 
     def _handle_delete(self, username, repo_name, headers):
@@ -181,13 +157,12 @@ class ConflictResolver:
             self.output.print_info("❌ Deletion cancelled")
             return self._handle_rename(repo_name)
 
-        # Delete repository
         url = f"https://api.github.com/repos/{username}/{repo_name}"
         response = requests.delete(url, headers=headers)
 
         if response.status_code == 204:
             self.output.print_success(f"🗑️ Repository '{repo_name}' deleted successfully")
-            time.sleep(2)  # Wait for GitHub to process
+            time.sleep(2)
             return "create", repo_name
         else:
             self.output.print_error(f"Failed to delete repository: {response.text}")
@@ -219,7 +194,6 @@ class ConflictResolver:
         methods = [
             self._method_normal_removal,
             self._method_chmod_removal,
-            self._method_git_clean,
             self._method_process_kill_removal,
             self._method_temp_move_removal
         ]
@@ -239,55 +213,35 @@ class ConflictResolver:
         return False
 
     def _method_normal_removal(self, path):
-        """Normal directory removal"""
         shutil.rmtree(path)
         return not os.path.exists(path)
 
     def _method_chmod_removal(self, path):
-        """Remove with chmod modification"""
         def handle_remove_readonly(func, path, exc):
             if os.path.exists(path):
                 os.chmod(path, stat.S_IWRITE)
                 func(path)
-
         shutil.rmtree(path, onerror=handle_remove_readonly)
         return not os.path.exists(path)
 
-    def _method_git_clean(self, path):
-        """Use git clean to remove files"""
-        try:
-            os.chdir(path)
-            subprocess.run(["git", "clean", "-fdx"], capture_output=True)
-            os.chdir("..")
-            shutil.rmtree(path)
-            return not os.path.exists(path)
-        except:
-            return False
-
     def _method_process_kill_removal(self, path):
-        """Kill processes and then remove"""
         self.kill_git_processes()
         time.sleep(2)
         shutil.rmtree(path)
         return not os.path.exists(path)
 
     def _method_temp_move_removal(self, path):
-        """Move to temp and schedule for deletion"""
         temp_dir = tempfile.mkdtemp()
         temp_path = os.path.join(temp_dir, "to_delete")
         shutil.move(path, temp_path)
-
-        # Try to remove from temp
         try:
             shutil.rmtree(temp_path)
         except:
-            # If fails, it will be cleaned by system temp cleanup
             pass
-
         return not os.path.exists(path)
 
 class BeautifulOutput:
-    """Enhanced output handler with conflict resolution"""
+    """Enhanced output handler"""
 
     def __init__(self):
         self.console = Console() if RICH_AVAILABLE else None
@@ -296,50 +250,33 @@ class BeautifulOutput:
         """Print enhanced banner"""
         if RICH_AVAILABLE:
             banner = """
-    🖥️ SERVER DASHBOARD IT UPLOADER 🖥️
-    ════════════════════════════════════════
-    🚀 Automated GitHub Repository Creator
-    📁 Smart File Management System
-    🎯 Professional Git Workflow
-    🛠️ ADVANCED CONFLICT RESOLUTION
-    🔧 PERMISSION ISSUE RESOLVER
-    ⚡ REACT + VITE + TAILWIND READY
+    🖥️ SERVER NETWORK TOPOLOGY MONITOR 🖥️
+    ═════════════════════════════════════════
+    🐍 Python/Tkinter Desktop Application
+    📊 Advanced Excel Database Integration
+    🎯 Professional Network Monitoring
+    🔄 Real-time Server Status Updates
+    ⚡ Multi-threaded Background Monitoring
+    🛠️ Complete CRUD Operations
+    📈 Performance Testing & Analytics
     """
             panel = Panel(
                 Align.center(Text(banner, style="bold blue")),
                 border_style="bright_green",
-                title="[bold yellow]🏆 IT DASHBOARD GITHUB UPLOADER PRO 🏆[/bold yellow]",
-                subtitle="[italic]v3.0 - Server Monitoring Dashboard Ready![/italic]"
+                title="[bold yellow]🏆 PYTHON SERVER MONITOR UPLOADER 🏆[/bold yellow]",
+                subtitle="[italic]v3.0 - Professional IT Infrastructure Management![/italic]"
             )
             self.console.print(panel)
         else:
-            self._fallback_banner()
-
-    def _fallback_banner(self):
-        """Enhanced fallback banner"""
-        if COLORAMA_AVAILABLE:
-            print(f"\n{Fore.CYAN}{'='*70}")
-            print(f"{Fore.YELLOW}🖥️ SERVER DASHBOARD IT UPLOADER 🖥️")
-            print(f"{Fore.GREEN}🚀 Automated GitHub Repository Creator")
-            print(f"{Fore.BLUE}📁 Smart File Management System")
-            print(f"{Fore.MAGENTA}🎯 Professional Git Workflow")
-            print(f"{Fore.RED}🛠️ ADVANCED CONFLICT RESOLUTION")
-            print(f"{Fore.YELLOW}🔧 PERMISSION ISSUE RESOLVER")
-            print(f"{Fore.CYAN}⚡ REACT + VITE + TAILWIND READY")
-            print(f"{Fore.CYAN}{'='*70}{Style.RESET_ALL}\n")
-        else:
             print("\n" + "="*70)
-            print("🖥️ SERVER DASHBOARD IT UPLOADER 🖥️")
-            print("🚀 Automated GitHub Repository Creator")
-            print("📁 Smart File Management System")
-            print("🎯 Professional Git Workflow")
-            print("🛠️ ADVANCED CONFLICT RESOLUTION")
-            print("🔧 PERMISSION ISSUE RESOLVER")
-            print("⚡ REACT + VITE + TAILWIND READY")
+            print("🖥️ SERVER NETWORK TOPOLOGY MONITOR 🖥️")
+            print("🐍 Python/Tkinter Desktop Application")
+            print("📊 Advanced Excel Database Integration")  
+            print("🎯 Professional Network Monitoring")
+            print("🔄 Real-time Server Status Updates")
             print("="*70 + "\n")
 
     def print_step(self, step_num, total_steps, title, description=""):
-        """Print step with enhanced formatting"""
         if RICH_AVAILABLE:
             progress_text = f"[bold cyan]Step {step_num}/{total_steps}[/bold cyan]"
             title_text = f"[bold green]{title}[/bold green]"
@@ -348,16 +285,7 @@ class BeautifulOutput:
                 content = f"{progress_text} - {title_text}\n{desc_text}"
             else:
                 content = f"{progress_text} - {title_text}"
-
             self.console.print(Panel(content, border_style="blue", padding=(0, 1)))
-        else:
-            self._fallback_step(step_num, total_steps, title, description)
-
-    def _fallback_step(self, step_num, total_steps, title, description=""):
-        if COLORAMA_AVAILABLE:
-            print(f"\n{Fore.CYAN}📋 Step {step_num}/{total_steps} - {Fore.GREEN}{title}")
-            if description:
-                print(f"{Fore.YELLOW}   💡 {description}")
         else:
             print(f"\n📋 Step {step_num}/{total_steps} - {title}")
             if description:
@@ -366,32 +294,24 @@ class BeautifulOutput:
     def print_success(self, message):
         if RICH_AVAILABLE:
             self.console.print(f"[bold green]✅ {message}[/bold green]")
-        elif COLORAMA_AVAILABLE:
-            print(f"{Fore.GREEN}✅ {message}")
         else:
             print(f"✅ {message}")
 
     def print_error(self, message):
         if RICH_AVAILABLE:
             self.console.print(f"[bold red]❌ {message}[/bold red]")
-        elif COLORAMA_AVAILABLE:
-            print(f"{Fore.RED}❌ {message}")
         else:
             print(f"❌ {message}")
 
     def print_info(self, message):
         if RICH_AVAILABLE:
             self.console.print(f"[bold blue]ℹ️  {message}[/bold blue]")
-        elif COLORAMA_AVAILABLE:
-            print(f"{Fore.BLUE}ℹ️  {message}")
         else:
             print(f"ℹ️  {message}")
 
     def print_warning(self, message):
         if RICH_AVAILABLE:
             self.console.print(f"[bold yellow]⚠️  {message}[/bold yellow]")
-        elif COLORAMA_AVAILABLE:
-            print(f"{Fore.YELLOW}⚠️  {message}")
         else:
             print(f"⚠️  {message}")
 
@@ -425,8 +345,8 @@ class BeautifulOutput:
         def update(self, task_id, advance=1):
             print(".", end="", flush=True)
 
-class GitHubDashboardUploader:
-    """Advanced GitHub uploader for Server Dashboard IT"""
+class GitHubServerMonitorUploader:
+    """Advanced GitHub uploader for Server Network Topology Monitor"""
 
     def __init__(self):
         self.output = BeautifulOutput()
@@ -457,16 +377,14 @@ class GitHubDashboardUploader:
 
     def _validate_config(self):
         """Validate configuration"""
-        # Basic validation - ensure directory exists
         if not os.path.exists(self.config['source_dir']):
             self.output.print_error(f"❌ Source directory not found: {self.config['source_dir']}")
             self.output.print_info("🔧 Please check the source directory path")
             sys.exit(1)
 
-        # Validate GitHub credentials are present
-        if not self.config['username'] or not self.config['token']:
+        if not self.config['username'] or not self.config['token'] or "TU-" in self.config['username'] or "TU-" in self.config['token']:
             self.output.print_error("❌ GitHub credentials missing!")
-            self.output.print_info("🔑 Please check username and token configuration")
+            self.output.print_info("🔑 Please edit the script and replace 'TU-USERUL-TAU-GITHUB' and 'TU-TOKEN-UL-TAU-GITHUB'")
             sys.exit(1)
 
     def run(self):
@@ -474,47 +392,37 @@ class GitHubDashboardUploader:
         try:
             self.output.print_banner()
 
-            # Step 0: Pre-check and conflict resolution
-            self.output.print_step(0, 7, "🔍 Pre-flight Checks",
-                                 "Checking for conflicts and preparing environment")
-            self._preflight_checks()
+            steps = [
+                ("🔍 Pre-flight Checks", "Checking for conflicts and preparing environment"),
+                ("🔧 Initializing Environment", "Setting up tools and checking requirements"),
+                ("🧹 Preparing Workspace", "Cleaning previous attempts and preparing directory"),
+                ("🏗️ Managing GitHub Repository", "Creating or updating remote repository"),
+                ("📁 Preparing Python Files", "Copying application files and database"),
+                ("🔄 Initializing Git Repository", "Setting up local Git repository"),
+                ("🚀 Uploading to GitHub", "Pushing Server Monitor to remote repository"),
+                ("🧹 Final Cleanup", "Removing temporary files and finalizing")
+            ]
 
-            # Step 1: Initialize
-            self.output.print_step(1, 7, "🔧 Initializing Environment",
-                                 "Setting up tools and checking requirements")
-            self._initialize()
+            for i, (title, description) in enumerate(steps, 1):
+                self.output.print_step(i, len(steps), title, description)
+                
+                if i == 1:
+                    self._preflight_checks()
+                elif i == 2:
+                    self._initialize()
+                elif i == 3:
+                    self._prepare_workspace()
+                elif i == 4:
+                    self._handle_repository()
+                elif i == 5:
+                    self._prepare_files_with_progress()
+                elif i == 6:
+                    self._initialize_repo()
+                elif i == 7:
+                    self._push_to_github()
+                elif i == 8:
+                    self._cleanup()
 
-            # Step 2: Cleanup and prepare workspace
-            self.output.print_step(2, 7, "🧹 Preparing Workspace",
-                                 "Cleaning previous attempts and preparing directory")
-            self._prepare_workspace()
-
-            # Step 3: Handle repository creation/conflict
-            self.output.print_step(3, 7, "🏗️  Managing GitHub Repository",
-                                 "Creating or updating remote repository")
-            self._handle_repository()
-
-            # Step 4: Prepare files
-            self.output.print_step(4, 7, "📁 Preparing Dashboard Files",
-                                 "Copying React app, Python scripts, and documentation")
-            self._prepare_files_with_progress()
-
-            # Step 5: Initialize Git
-            self.output.print_step(5, 7, "🔄 Initializing Git Repository",
-                                 "Setting up local Git repository")
-            self._initialize_repo()
-
-            # Step 6: Push to GitHub
-            self.output.print_step(6, 7, "🚀 Uploading to GitHub",
-                                 "Pushing Server Dashboard to remote repository")
-            self._push_to_github()
-
-            # Step 7: Finalize
-            self.output.print_step(7, 7, "🧹 Final Cleanup",
-                                 "Removing temporary files and finalizing")
-            self._cleanup()
-
-            # Success summary
             self._print_success_summary()
 
         except KeyboardInterrupt:
@@ -532,110 +440,58 @@ class GitHubDashboardUploader:
         with self.output.create_progress_bar("🔍 Running pre-flight checks") as progress:
             task = progress.add_task("Checking system...", total=100)
 
-            # Check source directory
-            progress.update(task, advance=20)
+            progress.update(task, advance=25)
             if not os.path.exists(self.config['source_dir']):
                 raise FileNotFoundError(f"Source directory not found: {self.config['source_dir']}")
 
-            # Check if user is admin
-            progress.update(task, advance=20)
-            try:
-                is_admin = os.getuid() == 0
-            except AttributeError:
-                is_admin = subprocess.run(["net", "session"], capture_output=True).returncode == 0
-
-            if not is_admin:
-                self.output.print_warning("⚠️ Not running as administrator - some cleanup operations may fail")
-
-            # Check for running Git processes
-            progress.update(task, advance=20)
+            progress.update(task, advance=25)
             killed = self.resolver.kill_git_processes()
             self.stats['processes_killed'] = killed
 
-            # Check repository conflict
-            progress.update(task, advance=20)
+            progress.update(task, advance=25)
             repo_exists = self.resolver.check_repository_exists(
-                self.config['username'],
-                self.config['repo_name'],
-                self.headers
+                self.config['username'], self.config['repo_name'], self.headers
             )
 
             if repo_exists:
                 self.stats['conflicts_resolved'] += 1
                 action, new_name = self.resolver.resolve_repository_conflict(
-                    self.config['username'],
-                    self.config['repo_name'],
-                    self.headers
+                    self.config['username'], self.config['repo_name'], self.headers
                 )
-
                 if new_name != self.config['repo_name']:
                     self.config['repo_name'] = new_name
                     self.repo_url = f"https://github.com/{self.config['username']}/{new_name}.git"
                     self.output.print_info(f"📝 Repository name updated to: {new_name}")
 
-            progress.update(task, advance=20)
-            self.output.print_success("Pre-flight checks completed")
+            progress.update(task, advance=25)
 
     def _prepare_workspace(self):
         """Enhanced workspace preparation"""
         with self.output.create_progress_bar("🧹 Preparing workspace") as progress:
             task = progress.add_task("Cleaning workspace...", total=100)
 
-            # Force remove existing directory
-            progress.update(task, advance=30)
+            progress.update(task, advance=50)
             if os.path.exists(self.config['work_dir']):
                 success = self.resolver.force_remove_directory(self.config['work_dir'])
                 if not success:
-                    # Try alternative directory
                     timestamp = int(time.time())
                     self.config['work_dir'] = f"{self.config['work_dir']}_{timestamp}"
-                    self.output.print_warning(f"Using alternative directory: {self.config['work_dir']}")
 
-            # Create fresh directory
-            progress.update(task, advance=40)
+            progress.update(task, advance=50)
             os.makedirs(self.config['work_dir'], exist_ok=True)
-
-            # Set proper permissions
-            progress.update(task, advance=30)
-            try:
-                os.chmod(self.config['work_dir'], 0o777)
-            except:
-                pass
-
-            self.output.print_success("Workspace prepared successfully")
 
     def _initialize(self):
         """Initialize with enhanced error handling"""
         with self.output.create_progress_bar("🔧 Initializing") as progress:
             task = progress.add_task("Setting up environment...", total=100)
 
-            # Find Git
-            progress.update(task, advance=30)
+            progress.update(task, advance=50)
             self.git_path = self._find_git()
             self.output.print_success(f"Git found: {self.git_path}")
 
-            # Validate paths
-            progress.update(task, advance=30)
+            progress.update(task, advance=50)
             if not os.path.exists(self.config['source_dir']):
                 raise FileNotFoundError(f"Source directory not found: {self.config['source_dir']}")
-
-            # Check available space
-            progress.update(task, advance=40)
-            self._check_disk_space()
-
-            self.output.print_success("Environment initialized successfully")
-
-    def _check_disk_space(self):
-        """Check available disk space"""
-        try:
-            import shutil
-            free_space = shutil.disk_usage(os.path.dirname(self.config['work_dir'])).free
-            source_size = sum(f.stat().st_size for f in Path(self.config['source_dir']).rglob('*') if f.is_file())
-
-            if free_space < source_size * 2:  # Need 2x space for safety
-                self.output.print_warning(f"⚠️ Low disk space. Available: {self._format_size(free_space)}, Need: {self._format_size(source_size * 2)}")
-        except:
-            pass
 
     def _find_git(self):
         """Find Git with enhanced error reporting"""
@@ -647,7 +503,6 @@ class GitHubDashboardUploader:
             except FileNotFoundError:
                 continue
             except Exception as e:
-                self.output.print_warning(f"Git found at {path} but failed: {e}")
                 continue
 
         self.output.print_error("Git not found. Please install Git:")
@@ -655,71 +510,44 @@ class GitHubDashboardUploader:
         raise Exception("Git not found")
 
     def _handle_repository(self):
-        """Handle repository creation with proper validation"""
+        """Handle repository creation"""
         with self.output.create_progress_bar("🏗️ Managing repository") as progress:
             task = progress.add_task("Creating repository...", total=100)
 
-            # Create the repository on GitHub
             url = "https://api.github.com/user/repos"
             data = {
                 "name": self.config['repo_name'],
-                "description": f"🖥️ Server Dashboard IT - Aplicație React profesională pentru monitorizarea serverelor cu interfață modernă, grid 5×3, alerting sistem, și management complet al infrastructurii IT - Uploaded {time.strftime('%Y-%m-%d %H:%M')}",
+                "description": f"🖥️ Server Network Topology Monitor - Aplicație Python/Tkinter profesională pentru monitorizarea infrastructurii IT cu interfață modernă, bază de date Excel, sistem alerting avansat și management complet al serverelor - Uploaded {time.strftime('%Y-%m-%d %H:%M')}",
                 "private": False,
                 "auto_init": False
             }
 
-            progress.update(task, advance=30)
+            progress.update(task, advance=50)
 
             try:
                 response = requests.post(url, json=data, headers=self.headers)
-                progress.update(task, advance=40)
-
                 if response.status_code not in [200, 201]:
                     if response.status_code == 422:
-                        error_data = response.json()
-                        if "already exists" in str(error_data):
-                            self.output.print_warning(f"Repository '{self.config['repo_name']}' already exists - will update it")
-                        else:
-                            raise Exception(f"Repository creation failed: {error_data.get('message', 'Unknown error')}")
+                        self.output.print_warning(f"Repository '{self.config['repo_name']}' already exists - will update it")
                     else:
                         raise Exception(f"GitHub API error {response.status_code}: {response.text}")
                 else:
                     self.output.print_success(f"Repository '{self.config['repo_name']}' created successfully")
 
-                progress.update(task, advance=30)
-
-                # Wait for GitHub to fully initialize the repository
+                progress.update(task, advance=50)
                 time.sleep(3)
-
-                # Verify repository exists
-                verify_url = f"https://api.github.com/repos/{self.config['username']}/{self.config['repo_name']}"
-                verify_response = requests.get(verify_url, headers=self.headers)
-
-                if verify_response.status_code != 200:
-                    raise Exception(f"Repository verification failed - repository may not exist: {verify_response.text}")
-
-                self.output.print_success(f"Repository verified and ready: {self.config['repo_name']}")
 
             except Exception as e:
                 raise Exception(f"Repository management failed: {str(e)}")
 
-        # Update the repository URL
-        self.repo_url = f"https://github.com/{self.config['username']}/{self.config['repo_name']}.git"
-
     def _prepare_files_with_progress(self):
-        """Prepare files with enhanced progress tracking for Dashboard"""
-        # Count total files first
-        total_files = 0
-        try:
-            total_files = sum(1 for _ in Path(self.config['source_dir']).rglob('*') if _.is_file())
-        except:
-            total_files = 100  # Fallback estimate
+        """Prepare files with enhanced progress tracking"""
+        total_files = sum(1 for f in Path(self.config['source_dir']).rglob('*') if f.is_file())
 
-        with self.output.create_progress_bar("📁 Copying Dashboard files") as progress:
+        with self.output.create_progress_bar("📁 Copying Server Monitor files") as progress:
             task = progress.add_task("Copying files...", total=total_files)
 
             for root, dirs, files in os.walk(self.config['source_dir']):
-                # Filter ignored directories (more specific for React/Node projects)
                 dirs[:] = [d for d in dirs if not any(ignore in d for ignore in self.config['ignore_files'])]
 
                 rel_path = os.path.relpath(root, self.config['source_dir'])
@@ -730,7 +558,6 @@ class GitHubDashboardUploader:
                     self.stats['directories_created'] += 1
 
                 for file in files:
-                    # More specific filtering for web projects
                     if not any(file.endswith(ext.replace('*', '')) for ext in self.config['ignore_files'] if ext.startswith('*')):
                         try:
                             src_file = os.path.join(root, file)
@@ -748,135 +575,64 @@ class GitHubDashboardUploader:
         self.output.print_success(f"Copied {self.stats['files_copied']} files ({self._format_size(self.stats['total_size'])})")
 
     def _initialize_repo(self):
-        """Initialize repository with enhanced error handling"""
+        """Initialize repository"""
         os.chdir(self.config['work_dir'])
 
         with self.output.create_progress_bar("🔄 Initializing Git") as progress:
             task = progress.add_task("Setting up Git...", total=100)
 
             try:
-                # Initialize git
                 subprocess.run([self.git_path, "init"], check=True, capture_output=True)
                 progress.update(task, advance=20)
 
                 subprocess.run([self.git_path, "branch", "-M", "main"], check=True, capture_output=True)
                 progress.update(task, advance=20)
 
-                # Create enhanced README and files
                 progress.update(task, advance=20)
                 self._create_enhanced_readme()
 
                 progress.update(task, advance=20)
-                self._create_comprehensive_gitignore()
+                self._create_gitignore()
 
-                # Initial commit
                 subprocess.run([self.git_path, "add", "."], check=True, capture_output=True)
-                subprocess.run([self.git_path, "commit", "-m", "🚀 Initial commit - Server Dashboard IT Monitoring System"],
+                subprocess.run([self.git_path, "commit", "-m", "🚀 Initial commit - Server Network Topology Monitor"],
                              check=True, capture_output=True)
                 progress.update(task, advance=20)
 
             except subprocess.CalledProcessError as e:
                 raise Exception(f"Git initialization failed: {e.stderr.decode() if e.stderr else 'Unknown error'}")
 
-        self.output.print_success("Git repository initialized successfully")
-
     def _push_to_github(self):
-        """Push with enhanced error handling and repository verification"""
+        """Push to GitHub"""
         os.chdir(self.config['work_dir'])
 
         with self.output.create_progress_bar("🚀 Uploading to GitHub") as progress:
             task = progress.add_task("Pushing to remote...", total=100)
 
             try:
-                # Double-check repository exists before pushing
-                verify_url = f"https://api.github.com/repos/{self.config['username']}/{self.config['repo_name']}"
-                verify_response = requests.get(verify_url, headers=self.headers)
-
-                if verify_response.status_code != 200:
-                    self.output.print_error(f"❌ Repository doesn't exist on GitHub: {self.config['repo_name']}")
-                    self.output.print_info("🔄 Attempting to create repository...")
-
-                    # Try to create repository again
-                    create_url = "https://api.github.com/user/repos"
-                    create_data = {
-                        "name": self.config['repo_name'],
-                        "description": f"🖥️ Server Dashboard IT - Professional monitoring system - Uploaded {time.strftime('%Y-%m-%d %H:%M')}",
-                        "private": False,
-                        "auto_init": False
-                    }
-
-                    create_response = requests.post(create_url, json=create_data, headers=self.headers)
-                    if create_response.status_code not in [200, 201]:
-                        raise Exception(f"Failed to create repository: {create_response.text}")
-
-                    self.output.print_success("✅ Repository created successfully")
-                    time.sleep(3)  # Wait for GitHub
-
-                progress.update(task, advance=20)
-
-                # Construct authenticated repository URL
                 auth_repo_url = f"https://{self.config['username']}:{self.config['token']}@github.com/{self.config['username']}/{self.config['repo_name']}.git"
 
-                # Remove existing remote if exists
-                subprocess.run([self.git_path, "remote", "remove", "origin"],
-                             capture_output=True)  # Ignore errors
+                subprocess.run([self.git_path, "remote", "remove", "origin"], capture_output=True)
+                subprocess.run([self.git_path, "remote", "add", "origin", auth_repo_url], check=True, capture_output=True)
+                progress.update(task, advance=30)
 
-                # Add remote
-                subprocess.run([self.git_path, "remote", "add", "origin", auth_repo_url],
-                             check=True, capture_output=True)
-                progress.update(task, advance=20)
-
-                # Try normal push first
-                self.output.print_info("📤 Attempting normal push...")
-                push_result = subprocess.run([self.git_path, "push", "-u", "origin", "main"],
-                                           capture_output=True)
-
+                push_result = subprocess.run([self.git_path, "push", "-u", "origin", "main"], capture_output=True)
                 if push_result.returncode != 0:
-                    # If normal push fails, try force push
-                    self.output.print_warning("⚠️ Normal push failed, trying force push...")
-                    push_result = subprocess.run([self.git_path, "push", "-f", "-u", "origin", "main"],
-                                               check=True, capture_output=True)
+                    push_result = subprocess.run([self.git_path, "push", "-f", "-u", "origin", "main"], check=True, capture_output=True)
 
-                progress.update(task, advance=60)
-
-                # Verify push was successful
-                final_verify = requests.get(verify_url, headers=self.headers)
-                if final_verify.status_code == 200:
-                    repo_data = final_verify.json()
-                    if repo_data.get('size', 0) > 0:
-                        self.output.print_success("✅ Push verified - Server Dashboard is now on GitHub!")
-                    else:
-                        self.output.print_warning("⚠️ Push completed but repository appears empty")
+                progress.update(task, advance=70)
 
             except subprocess.CalledProcessError as e:
                 error_msg = e.stderr.decode('utf-8', errors='ignore') if e.stderr else 'Unknown Git error'
-
-                # Provide specific error messages for common issues
-                if "repository not found" in error_msg.lower():
-                    raise Exception(f"Repository '{self.config['repo_name']}' not found on GitHub. Please check the name and permissions.")
-                elif "authentication failed" in error_msg.lower():
-                    raise Exception("GitHub authentication failed. Please check your token permissions.")
-                elif "permission denied" in error_msg.lower():
-                    raise Exception("Permission denied. Make sure your token has 'repo' permissions.")
-                else:
-                    raise Exception(f"Git push failed: {error_msg}")
-
-            except Exception as e:
-                raise Exception(f"Push operation failed: {str(e)}")
-
-        self.output.print_success(f"🎉 Successfully uploaded Server Dashboard to {self.repo_url}")
-
-        # Final verification message
-        self.output.print_info(f"🔗 Access your repository at: https://github.com/{self.config['username']}/{self.config['repo_name']}")
+                raise Exception(f"Git push failed: {error_msg}")
 
     def _cleanup(self):
-        """Enhanced cleanup with multiple attempts"""
+        """Enhanced cleanup"""
         success = self.resolver.force_remove_directory(self.config['work_dir'])
         if success:
             self.output.print_success("Temporary files cleaned up")
         else:
             self.output.print_warning(f"⚠️ Could not fully clean: {self.config['work_dir']}")
-            self.output.print_info("💡 You can manually delete this folder later")
 
     def _emergency_cleanup(self):
         """Emergency cleanup on failure"""
@@ -886,64 +642,77 @@ class GitHubDashboardUploader:
             pass
 
     def _create_enhanced_readme(self):
-        """Create comprehensive README for Server Dashboard IT"""
-        readme_content = f"""# 🖥️ Server Dashboard IT - Professional Monitoring System
+        """Create comprehensive README for Server Monitor"""
+        readme_content = f"""# 🖥️ Server Network Topology Monitor - Professional IT Infrastructure Management
 
-[![React](https://img.shields.io/badge/React-18.3+-blue.svg)](https://reactjs.org/)
-[![Vite](https://img.shields.io/badge/Vite-5.3+-green.svg)](https://vitejs.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.3+-cyan.svg)](https://tailwindcss.com/)
-[![Node.js](https://img.shields.io/badge/Node.js-22.17+-orange.svg)](https://nodejs.org/)
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org/)
+[![Tkinter](https://img.shields.io/badge/GUI-Tkinter-green.svg)](https://docs.python.org/3/library/tkinter.html)
+[![Pandas](https://img.shields.io/badge/Data-Pandas-orange.svg)](https://pandas.pydata.org/)
+[![Excel](https://img.shields.io/badge/Database-Excel-brightgreen.svg)](https://openpyxl.readthedocs.io/)
 [![GitHub](https://img.shields.io/badge/GitHub-{self.config['username']}-black.svg)](https://github.com/{self.config['username']})
 
-> 🏆 **Aplicație profesională React pentru monitorizarea serverelor IT cu interfață modernă, sistem de alerting avansat și management complet al infrastructurii.**
+> 🏆 **Aplicație desktop Python/Tkinter profesională pentru monitorizarea și managementul infrastructurii IT cu interfață modernă, sistem de alerting avansat și integrare completă cu baza de date Excel.**
 >
 > 📅 **Uploaded:** {time.strftime('%Y-%m-%d %H:%M:%S')}
 >
-> 🚀 **Auto-uploaded** with GitHub Dashboard Uploader Pro v3.0
+> 🚀 **Auto-uploaded** with GitHub Server Monitor Uploader Pro v3.0
 
 ## 🌟 Caracteristici Principale
 
-### 🎛️ **Dashboard Modern**
-- **Grid 5×3** pentru topologia rețelei cu vizualizare intuitivă
-- **Status real-time** cu codificare color (🟢 Online, 🟡 Warning, 🔴 Offline)
-- **Interfață responsivă** optimizată pentru toate device-urile
-- **Animații fluide** și tranziții profesionale
+### 🎛️ **Dashboard Modern & Intuitiv**
+- **Layout vertical** cu topologie de rețea în grid 2×3 (maxim 6 servere per tab)
+- **Tabs multiple** pentru organizarea serverelor (scalabilitate nelimitată)
+- **Interfață dark theme** profesională cu accent colors moderne
+- **Context menu** cu click dreapta pentru acțiuni rapide
+- **Highlight vizual** pentru servere selectate cu feedback instant
 
-### 📊 **Sistem Monitorizare Avansat**
-- **8 Servere pre-configurate** (Web, Database, API, Cache, Load Balancer, Monitoring, Backup, Firewall)
-- **Metrici în timp real**: CPU, RAM, Disk usage cu progress bars colorate
-- **Uptime tracking** și monitorizare continuă
-- **Actualizări automate** la fiecare 10 secunde
+### 📊 **Sistem Monitorizare în Timp Real**
+- **Monitorizare continuă** în background cu thread dedicat (actualizare la 15 secunde)
+- **Metrici complete**: CPU Usage, RAM Usage, Disk Usage, Network I/O, Performance Score
+- **Progress bars animate** cu codificare color pentru threshold-uri
+- **Uptime tracking** precis cu conversie ore/zile
+- **Status real-time** cu detectare automată a schimbărilor
 
 ### 🚨 **Sistem Alerting Inteligent**
-- **Alerting automat** pentru probleme critice
-- **Threshold-uri configurabile** (CPU >90%, RAM >85%, Disk >90%)
-- **Istoric alerte** cu timestamp și categorii
-- **Notificări vizuale** și sonore
+- **Threshold-uri configurabile**: CPU >90% (critic), RAM >85% (warning), Disk >90% (critic)
+- **Alerting automat** pentru probleme critice cu nivele de severitate
+- **Istoric alerte** cu timestamp și categorii (info, success, warning, critical)
+- **Feedback vizual** cu flash effects și sunet sistem pentru alerte critice
+- **Management alerte** cu posibilitate de clear și filtrare
 
-### 🔧 **Management Servere**
-- **Restart servere** cu animație loading
-- **View Full Logs** cu modal dedicat
-- **Server details modal** cu informații complete
-- **Network topology** cu click-to-detail
+### 🔧 **Management Complet Servere**
+- **CRUD complet**: Create, Read, Update, Delete cu validări avansate
+- **Formuri interactive** cu header-buttons pentru salvare rapidă
+- **Editare proprietăți** cu detectare automată a modificărilor
+- **Restart simulat** cu animații și feedback vizual
+- **Test performanță** comprehensive cu rezultate detaliate
+- **Management loguri** cu editare și salvare în Excel
 
-### ⚡ **Tehnologii Moderne**
-- **React 18** cu Hooks și functional components
-- **Vite** pentru build ultra-rapid
-- **Tailwind CSS** pentru styling modern
-- **Lucide React** pentru iconițe vectoriale
-- **Loading sistem** în 2 etape (HTML + React)
+### 📈 **Bază de Date Excel Avansată**
+- **Auto-backup** înainte de fiecare salvare cu versioning
+- **Structură auto-repair** pentru compatibilitate cu Excel-uri existente
+- **Gestionare conflicte** când Excel-ul este deschis
+- **Export/Import** seamless cu păstrarea formatului
+- **Validări de integritate** și reparare automată a structurii
 
-## 🚀 Setup Rapid
+### ⚡ **Arhitectură Tehnică Modernă**
+- **Multi-threading** pentru UI responsive și monitorizare background
+- **Memory management** optimizat pentru performanță
+- **Error handling** robust cu recovery automat
+- **Scroll îmbunătățit** cu mouse wheel support
+- **Layout responsive** cu dimensiuni dinamice
+
+## 🚀 Setup și Utilizare
 
 ### 📋 **Cerințe Sistem**
 ```bash
-Node.js 22.17+ (inclus în proiect: node-v22.17.1-win-x64)
-npm 10.9+
-Python 3.8+ (pentru scripturi setup)
+Python 3.8+ (recomandat 3.9+)
+pandas >= 1.3.0
+openpyxl >= 3.0.0
+tkinter (inclus în Python standard)
 ```
 
-### ⚡ **Instalare în 3 Pași**
+### ⚡ **Instalare în 2 Pași**
 
 1️⃣ **Clonează repository-ul**
 ```bash
@@ -951,180 +720,216 @@ git clone {self.repo_url}
 cd {self.config['repo_name']}
 ```
 
-2️⃣ **Setup automat cu script**
+2️⃣ **Instalează dependențele și pornește**
 ```bash
-python setup-dashboard.py
+pip install pandas openpyxl
+python "Aplicatie Complexa FINAL.py"
 ```
 
-3️⃣ **Sau pornește direct**
+### 🔧 **Instalare Dependențe**
 ```bash
-python START.py
-```
+# Instalare completă cu toate extensiile
+pip install pandas openpyxl xlsxwriter
 
-### 🔧 **Setup Manual (Alternativ)**
-```bash
-cd react-app
-npm install
-npm run dev
+# Pentru output îmbunătățit (opțional)
+pip install rich colorama
+
+# Pentru monitorizare procese (opțional)
+pip install psutil
 ```
 
 ## 📁 Structura Proiect
 
 ```
 {self.config['repo_name']}/
-├── react-app/                    # Aplicația React principală
-│   ├── src/
-│   │   ├── App.jsx              # Dashboard principal cu toate funcționalitățile
-│   │   ├── main.jsx             # Entry point React
-│   │   └── index.css            # Tailwind CSS setup
-│   ├── package.json             # Dependențe React
-│   ├── vite.config.js           # Configurare Vite
-│   ├── tailwind.config.js       # Configurare Tailwind
-│   └── index.html               # HTML cu loader sistem
-├── INSTALAT node-v22.17.1-win-x64/  # Node.js portable
-├── setup-dashboard.py           # Script setup automat
-├── START.py                     # Script pornire aplicație
-├── update-app.py               # Script actualizare funcționalități
-├── fix-templates.py            # Script reparare template literals
-├── Instructiuni.txt            # Ghid utilizare
-└── README.md                   # Documentație completă
+├── 📄 Aplicatie Complexa FINAL.py    # 🏆 Aplicația principală (131.7KB)
+├── 📊 server_database.xlsx           # Baza de date servere (cu backup)
+├── 📋 Idei de imbunatatire.txt      # Ghid îmbunătățiri și features viitoare
+├── 🚀 GITHUB UPLOADER PRO v3.0.py   # Script auto-upload GitHub
+├── 📜 Topologie retea 0.py          # Versiune simplă (pentru studiu)
+├── 📜 Topologie retea 1.py          # Versiune intermediară
+├── 📜 Topologie retea 2.py          # Versiune avansată
+└── 📖 README.md                     # Documentație completă
 ```
 
 ## 🎯 Funcționalități Detaliate
 
-### 🖥️ **Server Grid (5×3)**
-- **15 sloturi** pentru servere cu organizare logică
-- **8 servere active** pre-configurate cu date realiste
-- **Click pe server** → Modal detalii complete
-- **Hover effects** și animații scale
+### 🖥️ **Interfață Utilizator Avansată**
+- **Multi-tab system** pentru organizarea serverelor în grupuri logice
+- **Server grid 2×3** cu vizualizare intuitivă și click-to-detail
+- **Context menu** complet cu toate opțiunile (Detalii, Restart, Edit, Delete)
+- **Panels layout** cu topologie + detalii & control cu scroll optimizat
+- **Theme modern** dark cu accente de culoare și animații fluide
 
-### 📈 **Sistem Metrici**
-- **CPU Usage** cu threshold-uri colorate
-- **Memory Usage** cu progress bars animate
-- **Disk Usage** cu alerting automat
-- **Network Status** cu ping simulation
+### 📈 **Monitorizare și Metrici**
+- **8 tipuri de metrici** monitorizate în continuu
+- **Performance score** calculat dinamic pe baza tuturor metricilor
+- **Network monitoring** cu traffic in/out simulation
+- **Uptime calculation** precis cu conversii automate
+- **Threshold detection** cu alerting automat
 
-### 🔄 **Auto-refresh & Real-time**
-- **Simulare date live** cu variații realiste
-- **Refresh manual** cu buton și loading state
-- **Websocket ready** pentru implementare production
-- **Performance optimizat** pentru fluiditate
+### 🔄 **Background Processing**
+- **Thread separat** pentru monitorizare non-blocking
+- **Auto-refresh** la 15 secunde cu simulare date realiste
+- **Status changes** detectate automat cu recovery logic
+- **Memory cleanup** și resource management optimizat
+- **Error recovery** automat pentru situații neprevăzute
 
-### 🎨 **Design System**
-- **Dark theme** professional cu accent colors
-- **Gradient backgrounds** și glassmorphism effects
+### 🎨 **Design System Professional**
+- **Color coding** pentru statusuri (🟢 Online, 🟡 Warning, 🔴 Offline)
+- **Progress bars** animate cu threshold colors
 - **Micro-animations** pentru feedback utilizator
-- **Responsive design** pentru toate screen sizes
+- **Flash effects** pentru acțiuni importante
+- **Responsive design** pentru diferite rezoluții
 
-## 🚀 Development Workflow
+## 🔧 Configurare și Personalizare
 
-### 📦 **Scripts Disponibile**
-```bash
-# Setup complet automat
-python setup-dashboard.py
-
-# Pornire rapidă
-python START.py
-
-# Update funcționalități noi
-python update-app.py
-
-# Reparare template issues
-python fix-templates.py
-
-# Development server
-cd react-app && npm run dev
-
-# Build pentru production
-cd react-app && npm run build
+### ⚙️ **Configurări Avansate**
+```python
+# În fișierul principal, secțiunea de configurare:
+CONFIG = {{
+    'max_servers_per_tab': 6,          # Servere per tab
+    'monitoring_interval': 15,          # Secunde între verificări
+    'alert_thresholds': {{
+        'cpu_critical': 90,             # CPU critic %
+        'ram_warning': 85,              # RAM warning %
+        'disk_critical': 90             # Disk critic %
+    }},
+    'backup_retention': 5               # Număr backup-uri păstrate
+}}
 ```
 
-### 🔧 **Configurare Development**
-- **Hot reload** activat pentru development rapid
-- **Source maps** pentru debugging
-- **Error boundaries** pentru handling errors
-- **Performance monitoring** integrat
+### 🎛️ **Personalizare Interfață**
+- **Tema de culori** modificabilă în secțiunea `setup_styles()`
+- **Dimensiuni layout** configurabile pentru diferite ecrane
+- **Font customization** pentru accessibility
+- **Animation timing** ajustabil pentru performanță
 
 ## 📊 Upload Statistics
 
-- 📁 **Files:** {self.stats['files_copied']}
-- 📂 **Directories:** {self.stats['directories_created']}
-- 💾 **Size:** {self._format_size(self.stats['total_size'])}
+- 📁 **Files Uploaded:** {self.stats['files_copied']}
+- 📂 **Directories Created:** {self.stats['directories_created']}
+- 💾 **Total Size:** {self._format_size(self.stats['total_size'])}
 - 🛠️ **Conflicts Resolved:** {self.stats['conflicts_resolved']}
-- 🔄 **Processes Killed:** {self.stats['processes_killed']}
+- 🔄 **Processes Cleaned:** {self.stats['processes_killed']}
 
-## 🎯 Roadmap Viitor
+## 🎯 Roadmap și Dezvoltare Viitoare
 
-### v2.0 Features
-- [ ] **WebSocket integration** pentru date real-time
-- [ ] **User authentication** și role management
-- [ ] **Historical data** cu charts și trends
+### v2.0 Enterprise Features
+- [ ] **Database integration** cu SQL Server/PostgreSQL
+- [ ] **Web dashboard** complementar cu API REST
 - [ ] **Email notifications** pentru alerte critice
-- [ ] **Custom dashboards** configurabile
+- [ ] **Historical data** cu charts și trends analysis
+- [ ] **User authentication** și role-based access
 
-### v3.0 Enterprise
-- [ ] **Multi-tenant** support
-- [ ] **API REST** pentru integrări externe
-- [ ] **Docker deployment** cu orchestration
+### v3.0 Advanced Monitoring
+- [ ] **SNMP integration** pentru monitoring real de echipamente
+- [ ] **Network discovery** automat pentru servere noi
+- [ ] **Custom metrics** configurabile de utilizator
+- [ ] **Docker/container** monitoring support
+- [ ] **Cloud integration** (AWS, Azure, GCP)
+
+### v4.0 AI & Automation
+- [ ] **Predictive maintenance** cu machine learning
+- [ ] **Anomaly detection** automat
+- [ ] **Auto-scaling** recommendations
+- [ ] **Chatbot integration** pentru support
 - [ ] **Mobile app** companion
-- [ ] **AI-powered** predictive maintenance
 
-## 🤝 Contributing
+## 💡 Utilizare și Best Practices
 
-Contribuțiile sunt binevenite! Pentru bug reports, feature requests sau pull requests:
+### 🚀 **Quick Start Guide**
+1. **Lansează aplicația** - dublu-click pe `Aplicatie Complexa FINAL.py`
+2. **Explorează serverele** - click pe orice server din grid pentru detalii
+3. **Adaugă servere noi** - buton "➕ Adaugă Server" cu formular complet
+4. **Monitorizează în timp real** - aplicația se actualizează automat
+5. **Gestionează alertele** - panoul de alerte afișează problemele detectate
 
+### 🔧 **Sfaturi de Administrare**
+- **Backup regulat** - Excel-ul se salvează automat cu backup
+- **Monitorizare threshold-uri** - ajustează valorile pentru infrastructura ta
+- **Organizare în tabs** - grupează serverele logic (de ex: Production, Staging, Development)
+- **Review periodic** al logurilor pentru detectarea pattern-urilor
+- **Testare performanță** regulată pentru optimizare
+
+### ⚠️ **Troubleshooting Common Issues**
+- **Excel locked error** - închide Excel înainte de modificări majore
+- **Performance issues** - reduce numărul de servere monitorizate simultan
+- **Memory usage** - restartează aplicația periodic pentru cleanup
+- **Thread conflicts** - evită modificările simultane din multiple instanțe
+
+## 🤝 Contributing & Support
+
+### 🛠️ **Development Setup**
+```bash
+# Clone repository
+git clone {self.repo_url}
+cd {self.config['repo_name']}
+
+# Install development dependencies
+pip install pandas openpyxl rich colorama psutil
+
+# Run application
+python "Aplicatie Complexa FINAL.py"
+```
+
+### 📝 **Contribution Guidelines**
 1. **Fork** repository-ul
 2. **Create feature branch** (`git checkout -b feature/AmazingFeature`)
-3. **Commit changes** (`git commit -m 'Add AmazingFeature'`)
-4. **Push to branch** (`git push origin feature/AmazingFeature`)
-5. **Open Pull Request**
+3. **Test thoroughly** - aplicația gestionează date critice
+4. **Document changes** - update README și comentarii cod
+5. **Submit Pull Request** cu descriere detaliată
 
-## 📝 License
+### 🐛 **Bug Reports**
+Pentru raportarea bug-urilor, include:
+- **Python version** și OS details
+- **Stack trace** complet pentru erori
+- **Steps to reproduce** cu date de test
+- **Expected vs actual behavior**
+- **Screenshots** pentru probleme UI
+
+## 📜 License & Acknowledgments
 
 Distributed under the MIT License. See `LICENSE` for more information.
 
-## 📞 Contact & Support
-
-- **GitHub Issues**: Pentru bug reports și feature requests
-- **Documentation**: Vezi `Instructiuni.txt` pentru ghid detaliat
-- **Development**: Script-uri Python pentru automatizare completă
+### 🙏 **Special Thanks**
+- **pandas** team pentru data management excelent
+- **tkinter** pentru GUI framework robust și cross-platform
+- **openpyxl** pentru integrare Excel seamless
+- **Python community** pentru ecosystem bogat
 
 ---
 
 <div align="center">
 
-**🖥️ Dezvoltat cu pasiune pentru infrastructura IT și tehnologiile moderne! 🖥️**
+**🖥️ Dezvoltat cu pasiune pentru administrarea infrastructurii IT și tehnologii Python moderne! 🖥️**
 
-🤖 **Auto-uploaded** with [GitHub Dashboard Uploader Pro](https://github.com/{self.config['username']})
+🤖 **Auto-uploaded** with [GitHub Server Monitor Uploader Pro](https://github.com/{self.config['username']})
 
 ⭐ **Dacă îți place proiectul, oferă o stea!** ⭐
 
-🚀 **Ready for production deployment!** 🚀
+🚀 **Ready for production deployment in enterprise environments!** 🚀
+
+**🎯 Perfect pentru administratorii IT care au nevoie de monitoring rapid și eficient! 🎯**
 
 </div>
+
+---
+
+### 📞 Contact & Professional Use
+
+Această aplicație a fost dezvoltată pentru administrarea profesională a infrastructurii IT. 
+Pentru consultanță sau customizări enterprise, contactați dezvoltatorul prin GitHub Issues.
+
+**🏢 Enterprise features available upon request!**
 """
 
         with open("README.md", "w", encoding="utf-8") as f:
             f.write(readme_content)
 
-    def _create_comprehensive_gitignore(self):
-        """Create comprehensive .gitignore for React/Node project"""
-        gitignore_content = """# 🖥️ Server Dashboard IT - GitIgnore
-
-# 📦 Dependencies
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-# 🔨 Build outputs
-dist/
-dist-ssr/
-build/
-.vite/
-*.local
+    def _create_gitignore(self):
+        """Create gitignore for Python project"""
+        gitignore_content = """# 🖥️ Server Network Topology Monitor - GitIgnore
 
 # 🐍 Python
 __pycache__/
@@ -1142,20 +947,13 @@ parts/
 sdist/
 var/
 wheels/
-pip-wheel-metadata/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 
 # 🔒 Environment & Config
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
 .venv
-env/
 venv/
 ENV/
 env.bak/
@@ -1179,23 +977,9 @@ desktop.ini
 *~
 .sublime-project
 .sublime-workspace
-*.sublime-session
 
-# 🔍 Testing
-coverage/
-*.lcov
-.nyc_output
-
-# 📊 Logs
-logs/
+# 📊 Logs and temporary files
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-# 💾 Temporary files
 *.tmp
 *.temp
 *.bak
@@ -1203,256 +987,141 @@ lerna-debug.log*
 *.swo
 *~
 
-# 🔄 Runtime data
-pids/
-*.pid
-*.seed
-*.pid.lock
-
-# 📁 Directory for instrumented libs generated by jscoverage/JSCover
-lib-cov/
-
-# 🔍 Coverage directory used by tools like istanbul
-coverage/
-*.lcov
-
-# 📊 nyc test coverage
-.nyc_output/
-
-# 🎯 Dependency directories
-jspm_packages/
-
-# 🔧 TypeScript cache
-*.tsbuildinfo
-
-# 📦 Optional npm cache directory
-.npm
-
-# 📝 Optional eslint cache
-.eslintcache
-
-# 📊 Microbundle cache
-.rpt2_cache/
-.rts2_cache_cjs/
-.rts2_cache_es/
-.rts2_cache_umd/
-
-# 🔍 Optional REPL history
-.node_repl_history
-
-# 📤 Output of 'npm pack'
-*.tgz
-
-# 📦 Yarn Integrity file
-.yarn-integrity
-
-# 🔧 parcel-bundler cache (https://parceljs.org/)
-.cache
-.parcel-cache
-
-# 🎯 Next.js build output
-.next
-
-# 📊 Nuxt.js build / generate output
-.nuxt
-dist
-
-# 🔍 Gatsby files
-.cache/
-public
-
-# 📱 Storybook build outputs
-.out
-.storybook-out
-
-# 🔧 Temporary folders
-tmp/
-temp/
-
-# 🎯 Project specific
+# 📁 Project specific
 backup/
+temp/
 cache/
 uploads/
 
-# 🔄 Server Dashboard specific
-*.xlsx
-*.xls
-*.csv
+# 🔄 Server Monitor specific
+*.xlsx.backup
 server-logs/
 monitoring-data/
+performance-reports/
 """
         with open(".gitignore", "w", encoding="utf-8") as f:
             f.write(gitignore_content)
 
     def _print_success_summary(self):
-        """Enhanced success summary for Dashboard"""
+        """Enhanced success summary"""
         elapsed_time = time.time() - self.stats['start_time']
 
         if RICH_AVAILABLE:
-            stats_data = [
-                ("📁 Files Uploaded", self.stats['files_copied'], "React app + Python scripts"),
-                ("📂 Directories Created", self.stats['directories_created'], "Project structure"),
-                ("💾 Total Size", self._format_size(self.stats['total_size']), "Dashboard data transferred"),
-                ("🛠️ Conflicts Resolved", self.stats['conflicts_resolved'], "Repository conflicts"),
-                ("🔄 Processes Killed", self.stats['processes_killed'], "Git cleanup operations"),
-                ("⏱️ Time Elapsed", f"{elapsed_time:.1f}s", "Upload duration"),
-                ("🔗 Repository URL", self.repo_url, "Access your dashboard")
-            ]
-
-            table = self._create_stats_table(stats_data)
-            self.output.console.print(table)
-
             success_text = f"""
-🎉 SERVER DASHBOARD IT SUCCESSFULLY UPLOADED! 🎉
+🎉 SERVER NETWORK TOPOLOGY MONITOR UPLOADED SUCCESSFULLY! 🎉
 
-✅ Your professional monitoring system is now live on GitHub!
+✅ Your professional Python/Tkinter monitoring system is now live on GitHub!
 🔗 Access it at: {self.repo_url}
 
 🚀 Quick Start Commands:
   git clone {self.repo_url}
   cd {self.config['repo_name']}
-  python START.py
+  pip install pandas openpyxl
+  python "Aplicatie Complexa FINAL.py"
 
 ⚡ What's included:
-  • 🖥️ React Dashboard with 5×3 server grid
-  • 📊 Real-time monitoring with 8 pre-configured servers
-  • 🚨 Advanced alerting system
-  • 🔧 Server management tools (restart, logs, details)
-  • ⚡ Modern loading system and animations
-  • 🎨 Professional dark theme with Tailwind CSS
-  • 📱 Fully responsive design
-  • 🔄 Auto-refresh and real-time updates
+  • 🖥️ Professional Python/Tkinter Desktop Application (131.7KB)
+  • 📊 Advanced Excel database integration with auto-backup
+  • 🚨 Real-time monitoring system with multi-threading
+  • 🔧 Complete CRUD operations for server management  
+  • 📈 Performance testing and analytics tools
+  • 🎨 Modern dark theme with responsive design
+  • 🔄 Background monitoring with smart alerting system
+  • 📱 Context menus and advanced UI interactions
 
-💡 Next steps:
-  • 👀 Clone and test the dashboard locally
-  • 📝 Customize server configurations
-  • 🌟 Star the repository
-  • 🔄 Set up CI/CD pipeline
-  • 📊 Monitor your real infrastructure
+💡 Key Features:
+  • 👀 Multi-tab server organization (6 servers per tab)
+  • 📝 Excel integration with conflict resolution
+  • 🌟 Professional IT infrastructure management
+  • 🔄 Real-time status updates and performance metrics
+  • 📊 Advanced reporting and alert system
 
-🛠️ Professional upload with advanced features:
-  • 🔍 Pre-flight conflict detection and resolution
-  • 🧹 Multi-method force cleanup system
+🛠️ Professional upload completed with:
+  • 🔍 Advanced conflict detection and resolution
+  • 🧹 Multi-method cleanup system for robust deployment
   • 🔄 Git process management and optimization
-  • 📝 Intelligent repository name handling
-  • 📊 Comprehensive upload statistics
+  • 📝 Intelligent repository handling
+  • 📊 Comprehensive upload statistics and reporting
             """
 
             success_panel = Panel(
                 Align.center(Text(success_text, style="bold green")),
                 border_style="bright_green",
-                title="[bold yellow]🏆 SERVER DASHBOARD UPLOAD SUCCESS! 🏆[/bold yellow]",
-                subtitle="[italic]Professional IT Monitoring System Ready for Production[/italic]"
+                title="[bold yellow]🏆 PYTHON SERVER MONITOR UPLOAD SUCCESS! 🏆[/bold yellow]",
+                subtitle="[italic]Professional IT Infrastructure Management System Ready![/italic]"
             )
 
             self.output.console.print(success_panel)
         else:
-            self.output.print_success("SERVER DASHBOARD IT UPLOAD COMPLETED SUCCESSFULLY!")
+            self.output.print_success("SERVER NETWORK TOPOLOGY MONITOR UPLOAD COMPLETED!")
             print(f"\n📊 Upload Statistics:")
             print(f"   📁 Files: {self.stats['files_copied']}")
             print(f"   💾 Size: {self._format_size(self.stats['total_size'])}")
-            print(f"   🛠️ Conflicts: {self.stats['conflicts_resolved']}")
             print(f"   ⏱️ Time: {elapsed_time:.1f}s")
             print(f"\n🔗 Repository: {self.repo_url}")
-            print(f"\n🚀 Quick start: git clone {self.repo_url}")
-
-    def _create_stats_table(self, stats_data):
-        """Create beautiful stats table"""
-        if RICH_AVAILABLE:
-            table = Table(title="📊 Server Dashboard Upload Statistics", show_header=True, header_style="bold magenta")
-            table.add_column("📈 Metric", style="cyan", no_wrap=True)
-            table.add_column("📋 Value", style="green")
-            table.add_column("📝 Description", style="yellow")
-
-            for metric, value, description in stats_data:
-                table.add_row(metric, str(value), description)
-
-            return table
-        return None
 
     def _print_troubleshooting_guide(self):
-        """Print comprehensive troubleshooting guide for Dashboard"""
+        """Print troubleshooting guide"""
         if RICH_AVAILABLE:
             guide = """
-🔧 SERVER DASHBOARD TROUBLESHOOTING GUIDE
+🔧 SERVER MONITOR TROUBLESHOOTING GUIDE
 
-Common issues and solutions for dashboard upload:
+Common issues and solutions:
 
 1️⃣ **Configuration Issues**
-   • Edit script and replace 'TU-USERUL-TAU-GITHUB' with your username
-   • Replace 'TU-TOKEN-UL-TAU-GITHUB' with your GitHub token
-   • Ensure token has 'repo' permissions
+   • Edit script and replace 'TU-USERUL-TAU-GITHUB' with your GitHub username
+   • Replace 'TU-TOKEN-UL-TAU-GITHUB' with your GitHub personal access token
+   • Ensure token has 'repo' permissions for public repositories
 
-2️⃣ **Repository Not Found Error**
-   • Check repository name (avoid: update, delete, new, etc.)
-   • Try suggested names: Server-Dashboard-IT-Pro, IT-Dashboard-Monitoring
-   • Verify GitHub token permissions
+2️⃣ **Source Directory Issues**
+   • Verify the path exists: e:\\Carte\\BB\\17 - Site Leadership\\...\\Topologie retea\\
+   • Check that 'Aplicatie Complexa FINAL.py' is present
+   • Ensure all files are accessible (not locked by other programs)
 
-3️⃣ **Source Directory Issues**
-   • Verify d:\\Server-Dashboard-IT\\ exists
-   • Check folder contains react-app/ directory
-   • Ensure all files are accessible
+3️⃣ **Python Dependencies**
+   • Install required packages: pip install pandas openpyxl
+   • For enhanced output: pip install rich colorama psutil
+   • Verify Python 3.8+ is installed
 
-4️⃣ **Node.js / React Issues**
-   • Verify Node.js is in d:\\INSTALAT node-v22.17.1-win-x64\\
-   • Check react-app/package.json exists
-   • Ensure npm dependencies are available
+4️⃣ **Repository Conflicts**
+   • Choose 'update' to push to existing repository
+   • Choose 'rename' for alternative repository name
+   • Suggested names: Python-Server-Monitor, IT-Network-Dashboard
 
-5️⃣ **Permission Issues**
-   • Run as Administrator (Right-click → Run as administrator)
-   • Close VS Code, GitHub Desktop, or any Git tools
-   • Kill Node.js processes if running
+5️⃣ **File Access Issues**
+   • Close Excel if server_database.xlsx is open
+   • Run as Administrator for file permission issues
+   • Kill any running Git processes blocking files
 
-6️⃣ **Git Repository Issues**
-   • Delete existing .git folder in source if exists
-   • Clear git cache: git config --global credential.helper ""
-   • Try different work directory
+6️⃣ **GitHub Token Setup**
+   • Go to GitHub Settings → Developer Settings → Personal Access Tokens
+   • Generate new token → Select 'repo' scope for full repository access
+   • Copy token and replace in script configuration
 
-7️⃣ **GitHub Token Setup**
-   Settings → Developer Settings → Personal Access Tokens
-   Generate new token → Select 'repo' scope
+💡 After successful upload:
+   1. Clone repository: git clone [repo-url]
+   2. Install dependencies: pip install pandas openpyxl  
+   3. Run application: python "Aplicatie Complexa FINAL.py"
+   4. Test all features: server monitoring, alerts, Excel integration
 
-8️⃣ **Manual Cleanup**
-   Delete: D:\\temp_github_upload_dashboard
-   Clear: C:\\Users\\[user]\\AppData\\Local\\npm-cache
-
-💡 If upload fails but repository exists:
-   Choose "update" option to push to existing repo
-
-🔗 Complete Dashboard Setup:
-   1. Upload successful → git clone [repo-url]
-   2. cd [repo-folder] → python START.py
-   3. Dashboard opens at http://localhost:5173
-
-🎯 Dashboard Features to Test:
-   • React app loads with loading screen
-   • 5×3 server grid displays correctly
-   • Click servers → modal opens with details
-   • Restart server → animation works
-   • View Full Logs → extended modal
-   • Auto-refresh every 10 seconds
+🎯 Application Features to Test:
+   • Desktop GUI loads with modern dark theme
+   • Server grid displays with status indicators
+   • Click servers → details panel updates
+   • Add/Edit server → forms work correctly
+   • Excel database → saves and loads properly
+   • Background monitoring → updates every 15 seconds
             """
 
             panel = Panel(
                 Text(guide, style="yellow"),
                 border_style="red",
-                title="[bold red]🛠️ DASHBOARD TROUBLESHOOTING GUIDE[/bold red]"
+                title="[bold red]🛠️ SERVER MONITOR TROUBLESHOOTING[/bold red]"
             )
             self.output.console.print(panel)
-        else:
-            print("\n🔧 SERVER DASHBOARD TROUBLESHOOTING GUIDE:")
-            print("1. Configuration - Replace username and token in script")
-            print("2. Repository Not Found - Check name and token permissions")
-            print("3. Source Directory - Verify d:\\Server-Dashboard-IT\\ exists")
-            print("4. Run as Administrator")
-            print("5. Close all Git applications and Node.js processes")
-            print("6. Check GitHub token has 'repo' permissions")
-            print("7. Delete temp directory manually if needed")
-            print("8. Try different repository name if conflicts")
-            print("9. For existing repos, choose 'update' option")
 
     def _format_size(self, size_bytes):
-        """Format file size in human readable format"""
+        """Format file size"""
         if size_bytes == 0:
             return "0 B"
         size_names = ["B", "KB", "MB", "GB"]
@@ -1463,10 +1132,9 @@ Common issues and solutions for dashboard upload:
         return f"{s} {size_names[i]}"
 
 def main():
-    """Main entry point with enhanced dashboard-specific setup"""
-
-    print("🖥️ SERVER DASHBOARD IT - GITHUB UPLOADER PRO v3.0 🖥️")
-    print("=" * 70)
+    """Main entry point"""
+    print("🖥️ SERVER NETWORK TOPOLOGY MONITOR - GITHUB UPLOADER PRO v3.0 🖥️")
+    print("=" * 80)
 
     # Check for required libraries
     missing_libs = []
@@ -1481,17 +1149,17 @@ def main():
         missing_libs.append("psutil")
 
     if missing_libs:
-        print("⚠️  For full functionality, install required libraries:")
+        print("⚠️  For enhanced functionality, install optional libraries:")
         print(f"   pip install {' '.join(missing_libs)}")
-        print("   🎨 This adds beautiful output and process management!")
+        print("   🎨 This adds beautiful output and advanced process management!")
         print("\n🚀 Continuing with basic functionality...\n")
 
     # Run the uploader
     try:
-        uploader = GitHubDashboardUploader()
+        uploader = GitHubServerMonitorUploader()
         uploader.run()
     except KeyboardInterrupt:
-        print("\n🛑 Dashboard upload cancelled by user")
+        print("\n🛑 Server Monitor upload cancelled by user")
         sys.exit(0)
 
 if __name__ == "__main__":
